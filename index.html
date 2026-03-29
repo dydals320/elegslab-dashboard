@@ -707,7 +707,7 @@
             const completionRate = filteredData.length > 0 ? Math.round((completedCount / filteredData.length) * 100) : 0;
             const totalStorage = filteredData.reduce((sum, item) => sum + parseFloat(item.size_gb), 0).toFixed(1);
 
-            const today = new Date('2026-03-25');
+            const today = new Date();
             const weekAgo = new Date(today);
             weekAgo.setDate(today.getDate() - 7);
             const weeklyNew = filteredData.filter(item => {
@@ -1066,7 +1066,21 @@
             const data = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row || row.length === 0 || !row[colMap.date || 0]) continue;
+                if (!row || row.length === 0) continue;
+
+                // Skip Korean reference header row (row 2)
+                const dateVal = (row[colMap.date] || '').trim();
+                if (!dateVal || dateVal === '날짜') continue;
+
+                // Handle date: could be YYYY-MM-DD string or Google Sheets serial number
+                let parsedDate = dateVal;
+                if (/^\d{5}$/.test(dateVal)) {
+                    // Google Sheets serial number → date
+                    const d = new Date((parseInt(dateVal) - 25569) * 86400000);
+                    parsedDate = d.toISOString().split('T')[0];
+                } else if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(dateVal)) {
+                    parsedDate = dateVal.replace(/\//g, '-');
+                }
 
                 const cat = (row[colMap.category] || '').trim();
                 const mainCat = (row[colMap.main_category] || '').trim() ||
@@ -1074,7 +1088,7 @@
 
                 data.push({
                     id: i,
-                    date: (row[colMap.date] || '').trim(),
+                    date: parsedDate,
                     researcher: (row[colMap.researcher] || '').trim(),
                     category: cat,
                     main_category: mainCat,
